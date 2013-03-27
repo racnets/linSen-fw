@@ -1,0 +1,43 @@
+export TOP?=$(CURDIR)
+
+# program name
+PROGRAM=main
+# userlibrary path
+LIBDIR=$(TOP)/libs
+# startup file
+SULIB=$(LIBDIR)/startup
+# stm library path
+STMLIB=$(TOP)/../huch-abe/STM32F10x_Lib/Libraries
+# mavlink path
+MAVLINK=$(TOP)/../mavlink
+
+# arm build tools path
+TC=$(TOP)/../huch-abe/arm-2011.03/bin/arm-none-eabi
+CC=$(TC)-gcc
+LD=$(TC)-gcc
+OBJCOPY=$(TC)-objcopy
+OBJDUMP=$(TC)-objdump
+AR=$(TC)-ar
+AS=$(TC)-as
+
+INCLUDE = -I $(TOP)/inc
+INCLUDE+=-I$(STMLIB)/CMSIS/CM3/CoreSupport
+INCLUDE+=-I$(STMLIB)/CMSIS/CM3/DeviceSupport/ST/STM32F10x
+INCLUDE+=-I$(STMLIB)/STM32F10x_StdPeriph_Driver/inc
+INCLUDE+=-I$(MAVLINK)/include_v1.0
+
+COMMONFLAGS = -O3 -g -mcpu=cortex-m3 -mthumb -std=c99
+CFLAGS += $(COMMONFLAGS) -c -fno-common
+CFLAGS += $(INCLUDE)
+# device ID for SystemInit() - see stm32flash at device ID for information on density(_D) and value line(VL)
+# hardware: linSen board v0.1
+#CFLAGS += -D HW_LINSEN_V0_1
+#CFLAGS += -D STM32F10X_MD
+# hardware: linSen board v0.2
+CFLAGS += -D HW_LINSEN_V0_2
+CFLAGS += -D STM32F10X_MD
+# hardware: stm discovery board
+#CFLAGS += -D HW_DISCOVERY
+#CFLAGS += -D STM32F10X_MD_VL
+CFLAGS += -D USE_MAVLINK
+
