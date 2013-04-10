@@ -8,11 +8,27 @@
 #include "stm32f10x_tim.h"
 #include "misc.h"
 
+#include "main.h"
 #include "tsl1401.h"
 #include "usart1.h"
 
 #define ADC1_DR_Address    ((uint32_t)0x4001244C)
 #define DMAADCBUFFERSIZE	TSL1401PIXELCOUNT
+/* maximum supported adc sample rate:
+ * 14Mhz >= ADC_clock @72Mhz APB2_clock 12Mhz
+ * trigger latency: 2(regular) + 1/f_PCLK2
+ * sample time: 1.5 cycles - 239.5 cycles
+ * conversion time: 12.5 cycles
+ * -> 857 kHz sample rate
+ */
+#define PIX_CLK_MAX_1_5		705
+#define PIX_CLK_MAX_7_5		521
+#define PIX_CLK_MAX_13_5	413
+#define PIX_CLK_MAX_28_5	272
+#define PIX_CLK_MAX_41_5	210
+#define PIX_CLK_MAX_55_5	169
+#define PIX_CLK_MAX_71_5	137
+#define PIX_CLK_MAX_239_5	47
 
 /* amount of adc buffer datasets */
 #define DMANBOFADCBUFFER 3
@@ -92,8 +108,12 @@ void tsl1401_init(int _exposure, int _pixel_clock) {
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2 | RCC_APB1Periph_TIM3 | RCC_APB1Periph_TIM4, ENABLE);
 	/* enable ADC1, GPIOA, GPIOB, AF */
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_ADC1 | RCC_APB2Periph_GPIOB | RCC_APB2Periph_AFIO, ENABLE);
-	/* enable adc clock */
+	/* set adc clock */
+#ifdef HW_DISCOVERY
 	RCC_ADCCLKConfig(RCC_PCLK2_Div2);
+#elif ( HW_LINSEN_V0_1 || HW_LINSEN_V0_2 )
+	RCC_ADCCLKConfig(RCC_PCLK2_Div6);
+#endif
 	/* enable DMA1 clock */
 	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
 
@@ -165,11 +185,20 @@ void tsl1401_init(int _exposure, int _pixel_clock) {
 	ADC_InitStructure.ADC_NbrOfChannel = 1;
 	ADC_Init(ADC1, &ADC_InitStructure);
 
-	/* ADC1 regular channel7 configuration */ 
+	/* ADC1 regular configuration */ 
+	uint8_t adc_sampleTime;
+	if (pixClk < PIX_CLK_MAX_239_5) adc_sampleTime = ADC_SampleTime_239Cycles5;
+	else if (pixClk < PIX_CLK_MAX_71_5) adc_sampleTime = ADC_SampleTime_71Cycles5;
+	else if (pixClk < PIX_CLK_MAX_55_5) adc_sampleTime = ADC_SampleTime_55Cycles5;
+	else if (pixClk < PIX_CLK_MAX_41_5) adc_sampleTime = ADC_SampleTime_41Cycles5;
+	else if (pixClk < PIX_CLK_MAX_28_5) adc_sampleTime = ADC_SampleTime_28Cycles5;
+	else if (pixClk < PIX_CLK_MAX_13_5) adc_sampleTime = ADC_SampleTime_13Cycles5;
+	else if (pixClk < PIX_CLK_MAX_7_5) adc_sampleTime = ADC_SampleTime_7Cycles5;
+	else adc_sampleTime = ADC_SampleTime_1Cycles5;
 #ifdef HW_DISCOVERY
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_7, 1, ADC_SampleTime_1Cycles5);
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_7, 1, adc_sampleTime);
 #elif ( HW_LINSEN_V0_1 || HW_LINSEN_V0_2 )
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_9, 1, ADC_SampleTime_1Cycles5);
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_9, 1, adc_sampleTime);
 #endif
 
 	/* Enable ADC1 DMA */
@@ -454,8 +483,9 @@ inline void getParameters(int _exposure, int _pixClk) {
 	
     /* pixel clock */
 	/* limit pixel clock to valid values 5kHz - 8000kHz */
+	/* adc only supports PIX_CLK_MAX */
     if (_pixClk < 5) pixClk = 5;
-    else if (_pixClk > 8000) pixClk = 8000;
+    else if (_pixClk > PIX_CLK_MAX_1_5) pixClk = PIX_CLK_MAX_1_5;
     else pixClk = _pixClk;
     
     /* pixPeriod <= 14400(72M/5k)*/

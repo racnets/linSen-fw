@@ -35,7 +35,7 @@ int main(void) {
 	/* initialize moduls */
 	ledsInit();
 	buttonInit();
-	tsl1401_init(10000, 500);
+	tsl1401_init(50000, 200);
 	USART1Init();
 	time_init();
 	i2c_init(0x30);
@@ -86,7 +86,8 @@ int main(void) {
 			/* compute & print block match result */
 			if (config.s.oflow_algo != OFF && config.s.result_output != OFF) {
 				if (config.s.oflow_algo & BINARY) makeBinary(tsl1401_dataset, TSL1401PIXELCOUNT, config.s.average_brightness);
-				if (config.s.oflow_algo & BM_1)	blockMatch(tsl1401_dataset, tsl1401_dataset_old, TSL1401PIXELCOUNT, 8, 1, &linSen_result);
+				/* block Match with block size max */
+				if (config.s.oflow_algo & BM_1)	blockMatch(tsl1401_dataset, tsl1401_dataset_old, TSL1401PIXELCOUNT, 8, 8, &linSen_result);
 
 				blockMatchResultInt += linSen_result.global;
 				if (config.s.oflow_algo & DEBUG) {
@@ -115,14 +116,14 @@ int main(void) {
 					i2c_init_result(&linSen_result);
 				} else
 				/* the data not beeing send is beeing integrated */
-				 i2c_add_result(&linSen_result);
+				 ;//i2c_add_result(&linSen_result);
 			}
 
 			/* output sensor debug data via mavlink */
 			if (config.s.debug_modus & MAVLINK) mavlinkSendRaw((uint16_t*)tsl1401_dataset);
 
 			/* output sensor data via mavlink */
-			if (config.s.result_output & MAVLINK) mavlinkSendOpticalFlow(linSen_result.global, 0, 0);
+			if (config.s.result_output & MAVLINK) mavlinkSendOpticalFlow(linSen_result.global, linSen_result.size, 0);				
 		}
 	}
 }

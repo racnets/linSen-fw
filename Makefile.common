@@ -20,7 +20,6 @@ OBJDUMP=$(TC)-objdump
 AR=$(TC)-ar
 AS=$(TC)-as
 
-INCLUDE = -I $(TOP)/inc
 INCLUDE+=-I$(STMLIB)/CMSIS/CM3/CoreSupport
 INCLUDE+=-I$(STMLIB)/CMSIS/CM3/DeviceSupport/ST/STM32F10x
 INCLUDE+=-I$(STMLIB)/STM32F10x_StdPeriph_Driver/inc

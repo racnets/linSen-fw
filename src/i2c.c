@@ -193,7 +193,7 @@ uint8_t getRequestedData(void) {
     switch (addr++) {
         case 0 ... 0x20: {
             /* config struct */
-            if (addr < sizeof(config_u_t)) data = config.a[addr];
+            if (addr <= sizeof(config_u_t)) data = config.a[addr-1];
             break;
         }
         case 0x21: {
@@ -223,6 +223,12 @@ uint8_t getRequestedData(void) {
 			/* global result vector */
 			data = i2c_result.global >> 8;
 			if (i2c_result.overflow) ledRedToggle();
+			/* set result output to i2c */
+			config.s.result_output |= I2C | I2C_REQUEST;
+			break;
+		case 0x32 ... 0x32+MAX_RESULT_VECTORS:
+			/* block result vector */
+			data = i2c_result.vector[addr - 0x33];
 			/* set result output to i2c */
 			config.s.result_output |= I2C | I2C_REQUEST;
 			break;

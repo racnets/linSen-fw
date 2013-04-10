@@ -19,6 +19,7 @@ stm32flash -w FILE -v -g 0x0 /dev/ttyWHATEVER
 the -g 0x0 option starts the program on the device after writing it.
 Otherwise you'll have to reset the device manually to get the code running.
 
+If using a toolchain simply copiing the files in src-directory and set up a compiler symbol which signals the used hardware: e.g. HW_LINSEN_V0.2
 
 ## hardware in use overview
 

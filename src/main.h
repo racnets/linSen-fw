@@ -89,8 +89,8 @@ extern config_u_t config;
 
 typedef struct {
 	uint8_t size;
-	uint16_t global;
-	uint16_t vector[MAX_RESULT_VECTORS];
+	int16_t global;
+	int16_t vector[MAX_RESULT_VECTORS];
 	uint8_t overflow;
 } result_t;
 
