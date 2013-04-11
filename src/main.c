@@ -31,6 +31,7 @@ int main(void) {
 	config.s.usart_modus = OPEN;
 	config.s.oflow_algo = BM_1;
 	config.s.oflow_algo_param = 0;
+	config.s.result_output |= LEDS;
 
 	/* initialize moduls */
 	ledsInit();
@@ -102,10 +103,8 @@ int main(void) {
 
 			/* visualize optical flow */
 			if (config.s.result_output & LEDS) {
-				ledGreenOn();
-				ledBlueOn();
-				if (linSen_result.global > 0) ledBlueOff();
-				else if (linSen_result.global < 0) ledGreenOff();
+				if (linSen_result.global != 0) ledRedToggle();
+				else ledRedOff();
 			}
 			
 			/* process i2c output */
