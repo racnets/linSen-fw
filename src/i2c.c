@@ -10,6 +10,7 @@
 //#include "usart1.h"
 #include "tsl1401.h"
 #include "calibration.h"
+#include "eeprom.h"
 
 result_t i2c_result;
 
@@ -138,6 +139,7 @@ void processReceivedData(uint8_t data) {
                     switch (data) {
 						case 0x2A: {
 							/* change i2c address */
+							state = 4;
 							break;
 						}
                         case 0x42: {
@@ -180,6 +182,11 @@ void processReceivedData(uint8_t data) {
             if (addr < sizeof(config_u_t)) config.a[addr++] = data;
             break;
         }
+        case 4: {
+			/* write new i2c slave address to flash */
+			EE_WriteVariable(I2C_SLAVE_ADDRESS_ADDR, data);
+			break;
+		}
         default:;
     }   
 }

@@ -72,7 +72,7 @@ void timers_init(int _clock);
 /* 
  * setup all hardware corresponding to tsl1401 sensor
  * important to start the timer after adc and dma
- * otherwise the data will be missaligned 
+ * otherwise the data will be misalligned
  * TODO: add functional description
  */
 void tsl1401_init(int _exposure, int _pixel_clock) {
@@ -102,7 +102,7 @@ void tsl1401_init(int _exposure, int _pixel_clock) {
 	tsl1401_dataset = _ADC_value[actBuffer];
 	
 	
-    /***************************************************	
+    /***************************************************/
 	/* clocks configuration */
 	/* TIM2-4 clock enable */
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2 | RCC_APB1Periph_TIM3 | RCC_APB1Periph_TIM4, ENABLE);
@@ -118,7 +118,7 @@ void tsl1401_init(int _exposure, int _pixel_clock) {
 	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
 
 
-    /***************************************************	
+    /***************************************************/
 	/* GPIO configuration */
 #ifdef HW_DISCOVERY
 	/* Configure PA.07 (ADC Channel7) as analog input */
@@ -160,7 +160,7 @@ void tsl1401_init(int _exposure, int _pixel_clock) {
 #endif
 
 
-    /***************************************************	
+    /***************************************************/
 	/* NVIC Configuration */
 	NVIC_InitTypeDef NVIC_InitStructure;
 	/* enable the DMA1 global interrupt on channel 1*/
@@ -174,7 +174,7 @@ void tsl1401_init(int _exposure, int _pixel_clock) {
 	NVIC_Init(&NVIC_InitStructure);
 
 
-    /***************************************************	
+    /***************************************************/
 	/* ADC1 configuration */
 	ADC_InitTypeDef ADC_InitStructure;
 	ADC_InitStructure.ADC_Mode = ADC_Mode_Independent;
@@ -218,7 +218,7 @@ void tsl1401_init(int _exposure, int _pixel_clock) {
 	while(ADC_GetCalibrationStatus(ADC1));
 
 
-    /***************************************************	
+    /***************************************************/
 	/* DMA1 channel1 configuration */
 	DMA_InitTypeDef DMA_InitStructure;
 	DMA_DeInit(DMA1_Channel1);
@@ -240,7 +240,7 @@ void tsl1401_init(int _exposure, int _pixel_clock) {
 	DMA_ITConfig(DMA1_Channel1, DMA_IT_HT, ENABLE);
 
 
-    /***************************************************	
+    /***************************************************/
 	/* DMA1 channel2 configuration */
 	//DMA_InitTypeDef DMA_InitStructure;
 	DMA_DeInit(DMA1_Channel2);
@@ -261,7 +261,7 @@ void tsl1401_init(int _exposure, int _pixel_clock) {
 	DMA_ITConfig(DMA1_Channel2, DMA_IT_TC, ENABLE);
 	
 
-    /***************************************************
+    /***************************************************/
 	/* 1st TIMER configuration */
 	/* pixel clock timer configuration */
 	TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
@@ -286,7 +286,7 @@ void tsl1401_init(int _exposure, int _pixel_clock) {
 	TIM_SelectOutputTrigger(TIM4, TIM_TRGOSource_Update);
 
 
-    /***************************************************
+    /***************************************************/
 	/* 2nd TIMER configuration */
 	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
 	TIM_TimeBaseStructure.TIM_Prescaler = 0;
@@ -338,7 +338,7 @@ void tsl1401_init(int _exposure, int _pixel_clock) {
 	TIM_SelectOutputTrigger(TIM3, TIM_TRGOSource_OC4Ref);
 
 
-    /***************************************************
+    /***************************************************/
 	/* 3rd TIMER configuration */
 	/* ADC clock timer configuration */
 	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
@@ -474,8 +474,8 @@ int getExposureValue() {
 
 
 /*
-/* set the exposure and pixel clock parameter
-/* the exposure valid range depends on the chosen pixel clock
+ * set the exposure and pixel clock parameter
+ * the exposure valid range depends on the chosen pixel clock
 */
 inline void getParameters(int _exposure, int _pixClk) {
     int _minExposure;

@@ -96,4 +96,6 @@ typedef struct {
 
 extern result_t linSen_result;
 
+#define I2C_SLAVE_ADDRESS_ADDR	0x0815
+
 #endif /* __MAIN_H */

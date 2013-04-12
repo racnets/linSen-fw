@@ -1,9 +1,11 @@
 #include "stm32f10x.h"
 #include "stm32f10x_rcc.h"
 #include "stm32f10x_dma.h"
+#include "stm32f10x_flash.h"
 
 #include "main.h"
 
+#include "eeprom.h"
 #include "led.h"
 #include "usart1.h"
 #include "tsl1401.h"
@@ -16,16 +18,22 @@
 
 void RCC_Configuration(void);
 
+/* Virtual address defined by the user: 0xFFFF value is prohibited */
+uint16_t VirtAddVarTab[NumbOfVar] = {I2C_SLAVE_ADDRESS_ADDR};
+
 int blockMatchResultInt = 0;
 
 config_u_t config = {0};
 result_t linSen_result = {0};
 
 int main(void) {
-	/* config clocks configuration */
+	uint16_t i2c_addr = 0x30;
+	int res;
+
+	/* configure clocks configuration */
 	RCC_Configuration();
 
-	/* initialize config struct */
+	/* initialize configure structure */
 	config.s.sys_id = LIN_SEN_SYSID;
 	config.s.id = LIN_SEN_ID;
 	config.s.usart_modus = OPEN;
@@ -33,13 +41,20 @@ int main(void) {
 	config.s.oflow_algo_param = 0;
 	config.s.result_output |= LEDS;
 
-	/* initialize moduls */
+	/* initialize modules */
+	/* Unlock the Flash Program Erase controller */
+	FLASH_Unlock();
+	/* EEPROM Init */
+	EE_Init();
+	/* get i2c address from flash */
+	if (EE_ReadVariable(I2C_SLAVE_ADDRESS_ADDR, &i2c_addr) != 0) EE_WriteVariable(I2C_SLAVE_ADDRESS_ADDR, i2c_addr);
+
 	ledsInit();
 	buttonInit();
 	tsl1401_init(50000, 200);
 	USART1Init();
 	time_init();
-	i2c_init(0x30);
+	i2c_init(i2c_addr);
 
 	/* run programm */
 	while (1) {
