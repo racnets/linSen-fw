@@ -28,7 +28,9 @@ result_t linSen_result = {0};
 
 int main(void) {
 	uint16_t i2c_addr = 0x30;
-	int res;
+	uint32_t _systick_then, _systick_now;
+	uint32_t round_trip;
+	int help = 100;
 
 	/* configure clocks configuration */
 	RCC_Configuration();
@@ -58,6 +60,11 @@ int main(void) {
 
 	/* run programm */
 	while (1) {
+		/* round-trip measurement */
+		_systick_now = get_systick();
+		round_trip = _systick_then - _systick_now;
+		_systick_then = _systick_now;
+
 		/* process usart1 rx data */
 		if (usart1_rx_data_available() && config.s.usart_modus != OFF) {
 			//if (config.s.usart_modus == TERMINAL || config.s.usart_modus == OPEN) parseRxBuffer();

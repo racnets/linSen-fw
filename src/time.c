@@ -47,8 +47,21 @@ void time_init() {
 	RTC_SetPrescaler(62); /* RTC period = RTCCLK/RTC_PR = (8Mhz / 128)/RTC_Prescaler */
 #endif
 	RTC_WaitForLastTask();
+
+	/* setup systick */
+	//SysTick->LOAD = SystemCoreClock / 8;		/* set reload register to 1 sec */
+	SysTick->LOAD = SysTick_LOAD_RELOAD;		/* set reload register to maximum */
+	SysTick->CTRL = SysTick_CTRL_CLKSOURCE |
+					SysTick_CTRL_ENABLE;       	/* Enable SysTick Timer */
  }
 
+/* return time in us */
 uint32_t get_time() {
 	return RTC_GetCounter();
+}
+
+/* return sys ticks */
+uint32_t get_systick() {
+//	return 8 * SysTick->VAL;
+	return SysTick->VAL;
 }
