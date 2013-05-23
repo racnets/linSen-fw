@@ -25,7 +25,7 @@ void ledsInit(void);
     #define ledGreenOn() GPIO_WriteBit(GPIOC, GPIO_Pin_9, Bit_SET)
     #define ledGreenOff() GPIO_WriteBit(GPIOC, GPIO_Pin_9, Bit_RESET)
     #define ledGreenToggle() GPIO_WriteBit(GPIOC, GPIO_Pin_9, (BitAction)(1 - GPIO_ReadOutputDataBit(GPIOC, GPIO_Pin_9)))
-#elif HW_LINSEN_V0_1
+#elif defined HW_LINSEN_V0_1
 	/* on linSen hardware the blue LED is a red one */
 	#define ledBlueOff ledRedOff
 	#define ledBlueOn ledRedOn
@@ -37,7 +37,7 @@ void ledsInit(void);
     #define ledGreenOn() GPIO_WriteBit(GPIOA, GPIO_Pin_2, Bit_SET)
     #define ledGreenOff() GPIO_WriteBit(GPIOA, GPIO_Pin_2, Bit_RESET)
     #define ledGreenToggle() GPIO_WriteBit(GPIOA, GPIO_Pin_2, (BitAction)(1 - GPIO_ReadOutputDataBit(GPIOA, GPIO_Pin_2)))
-#elif HW_LINSEN_V0_2
+#elif defined HW_LINSEN_V0_2
 	/* on linSen hardware the blue LED is a red one */
 	#define ledBlueOff ledRedOff
 	#define ledBlueOn ledRedOn

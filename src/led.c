@@ -16,7 +16,7 @@ void ledsInit(void) {
 	    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 
 	    GPIO_Init(GPIOC, &GPIO_InitStructure);
-    #elif HW_LINSEN_V0_1
+    #elif defined HW_LINSEN_V0_1
     	/* GPIOA clock enable */
 	    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
 
@@ -27,7 +27,7 @@ void ledsInit(void) {
 	    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 
 	    GPIO_Init(GPIOA, &GPIO_InitStructure);
-    #elif HW_LINSEN_V0_2
+    #elif defined HW_LINSEN_V0_2
     	/* GPIOA clock enable */
 	    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
 

@@ -8,7 +8,7 @@
 #include "main.h"
 #include "led.h"
 #include "usart1.h"
-#include "tsl1401.h"
+//#include "tsl1401.h"
 
 #define TXBUFFERSIZE 0xFF
 #define RXBUFFERSIZE 0xFF

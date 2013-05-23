@@ -38,8 +38,8 @@ int mavlinkSendCtrl(uint8_t cmd, uint16_t arg) {
 	} else return 0;
 }
 
-/* function to send a mavlink raw data message over USART1 using DMA */
-int mavlinkSendRaw(volatile uint16_t *data) {
+/* function to send a mavlink linSen raw data message over USART1 using DMA */
+int mavlinkSendLinRaw(volatile uint16_t *data) {
 	uint8_t *mav_msg_raw;
 #if MAVLINK_CRC_EXTRA
 	static const uint8_t mavlink_message_crcs[256] = MAVLINK_MESSAGE_CRCS;
@@ -69,6 +69,36 @@ int mavlinkSendRaw(volatile uint16_t *data) {
 		mav_msg_tx.msgid = MAVLINK_MSG_ID_HUCH_LIN_SEN_RAW;
 
 		mavlink_finalize_message(&mav_msg_tx, LIN_SEN_SYSID, LIN_SEN_COMPID, MAVLINK_MSG_ID_HUCH_LIN_SEN_RAW_LEN, mavlink_message_crcs[MAVLINK_MSG_ID_HUCH_LIN_SEN_RAW]);
+
+		/* send over usart1 with dma */
+		sendUSART1DMA((uint32_t)&(mav_msg_tx.magic), MAVLINK_NUM_NON_PAYLOAD_BYTES + (uint16_t)mav_msg_tx.len);
+
+		return 1;
+	} else return 0;
+}
+
+/* function to send a mavlink quadPix raw data message over USART1 using DMA */
+int mavlinkSendQuadRaw(volatile uint32_t *data) {
+	uint32_t *mav_msg_raw;
+#if MAVLINK_CRC_EXTRA
+	static const uint8_t mavlink_message_crcs[256] = MAVLINK_MESSAGE_CRCS;
+#endif
+
+	if (USART1DMAReady()) {
+		int i = 1;
+		int k = 0;
+
+		// timestamp in microseconds
+		_mav_put_uint32_t(mav_msg_tx.payload64, 0, get_time());
+		mav_msg_raw = (uint32_t *)mav_msg_tx.payload64;
+		/* add raw data to message payload */
+		for (; k < 10;) {
+			mav_msg_raw[i++] = data[k++];
+		}
+
+		mav_msg_tx.msgid = MAVLINK_MSG_ID_HUCH_QUAD_PIX_RAW;
+
+		mavlink_finalize_message(&mav_msg_tx, LIN_SEN_SYSID, LIN_SEN_COMPID, MAVLINK_MSG_ID_HUCH_QUAD_PIX_RAW_LEN, mavlink_message_crcs[MAVLINK_MSG_ID_HUCH_QUAD_PIX_RAW]);
 
 		/* send over usart1 with dma */
 		sendUSART1DMA((uint32_t)&(mav_msg_tx.magic), MAVLINK_NUM_NON_PAYLOAD_BYTES + (uint16_t)mav_msg_tx.len);

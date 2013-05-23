@@ -7,7 +7,7 @@
 #include "main.h"
 #include "i2c.h"
 #include "led.h"
-//#include "usart1.h"
+#include "usart1.h"
 #include "tsl1401.h"
 #include "calibration.h"
 #include "eeprom.h"

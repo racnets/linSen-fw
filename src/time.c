@@ -34,7 +34,7 @@ void time_init() {
 	/* Set RTC prescaler: set RTC period to 1msec */
 	RTC_SetPrescaler(33); /* RTC period = RTCCLK/RTC_PR = (32.768 KHz)/RTC_Prescaler */
 	/* Wait until last write operation on RTC registers has finished */
-#elif ( HW_LINSEN_V0_1 || HW_LINSEN_V0_2 )
+#elif defined HW_LINSEN_V0_1 || defined HW_LINSEN_V0_2
 	/* Select HSE(8Mhz)/128 as RTC Clock Source */
 	RCC_RTCCLKConfig(RCC_RTCCLKSource_HSE_Div128);
 	/* Enable RTC Clock */

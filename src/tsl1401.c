@@ -111,7 +111,7 @@ void tsl1401_init(int _exposure, int _pixel_clock) {
 	/* set adc clock */
 #ifdef HW_DISCOVERY
 	RCC_ADCCLKConfig(RCC_PCLK2_Div2);
-#elif ( HW_LINSEN_V0_1 || HW_LINSEN_V0_2 )
+#elif defined HW_LINSEN_V0_1 || defined HW_LINSEN_V0_2
 	RCC_ADCCLKConfig(RCC_PCLK2_Div6);
 #endif
 	/* enable DMA1 clock */
@@ -134,7 +134,7 @@ void tsl1401_init(int _exposure, int _pixel_clock) {
 	/* Configure PB.09 as alternate function push-pull - CLK*/
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
-#elif HW_LINSEN_V0_1
+#elif defined HW_LINSEN_V0_1
 	/* Configure PB.01 (ADC Channel9) as analog input */
 	GPIO_InitTypeDef GPIO_InitStructure;
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1;
@@ -145,7 +145,7 @@ void tsl1401_init(int _exposure, int _pixel_clock) {
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
-#elif HW_LINSEN_V0_2
+#elif defined HW_LINSEN_V0_2
 	/* Configure PB.01 (ADC Channel9) as analog input */
 	GPIO_InitTypeDef GPIO_InitStructure;
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1;
@@ -197,7 +197,7 @@ void tsl1401_init(int _exposure, int _pixel_clock) {
 	else adc_sampleTime = ADC_SampleTime_1Cycles5;
 #ifdef HW_DISCOVERY
 	ADC_RegularChannelConfig(ADC1, ADC_Channel_7, 1, adc_sampleTime);
-#elif ( HW_LINSEN_V0_1 || HW_LINSEN_V0_2 )
+#elif defined HW_LINSEN_V0_1 || defined HW_LINSEN_V0_2
 	ADC_RegularChannelConfig(ADC1, ADC_Channel_9, 1, adc_sampleTime);
 #endif
 
@@ -306,13 +306,13 @@ void tsl1401_init(int _exposure, int _pixel_clock) {
 	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM1;    
 	TIM_OCInitStructure.TIM_Pulse = 1;
 	TIM_OC1Init(TIM3, &TIM_OCInitStructure);
-#elif HW_LINSEN_V0_1
+#elif defined HW_LINSEN_V0_1
 	/* Output Compare Timing Mode configuration: Channel3 */
 	/* SI pulse */
 	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM1;    
 	TIM_OCInitStructure.TIM_Pulse = 1;
 	TIM_OC3Init(TIM3, &TIM_OCInitStructure);
-#elif HW_LINSEN_V0_2
+#elif defined HW_LINSEN_V0_2
 	/* Output Compare Timing Mode configuration: Channel2 */
 	/* SI0 pulse */
 	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM1;    

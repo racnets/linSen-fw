@@ -5,7 +5,6 @@
 #include "main.h"
 #include "blockmatch.h"
 #include "usart1.h"
-#include "tsl1401.h"
 
 #define INT_MAX	2147483647
 
