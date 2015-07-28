@@ -5,7 +5,7 @@
 #include "led.h"
 
 void ledsInit(void) {
-    #ifdef HW_DISCOVERY
+    #ifdef USE_STM32_DISCOVERY
     	/* GPIOC clock enable */
 	    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
 

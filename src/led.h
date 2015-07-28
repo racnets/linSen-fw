@@ -5,7 +5,7 @@
 
 void ledsInit(void);
 
-#ifdef HW_DISCOVERY
+#ifdef USE_STM32_DISCOVERY
     #define pinPC6On() GPIO_WriteBit(GPIOC, GPIO_Pin_6, Bit_SET)
     #define pinPC6Off() GPIO_WriteBit(GPIOC, GPIO_Pin_6, Bit_RESET)
     #define pinPC6Toggle() GPIO_WriteBit(GPIOC, GPIO_Pin_6, (BitAction)(1 - GPIO_ReadOutputDataBit(GPIOC, GPIO_Pin_6)))

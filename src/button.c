@@ -5,7 +5,7 @@
 #include "button.h"
 
 void buttonInit(void) {
-    #ifdef HW_DISCOVERY
+    #ifdef USE_STM32_DISCOVERY
 	    /* GPIOA clock enable */
 	    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
 

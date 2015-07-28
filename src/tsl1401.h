@@ -23,4 +23,5 @@ void setExposureValue(int value);
 void setPixelClock(int value);
 int getPixelClock();
 
+
 #endif /* __TSL1401_H */

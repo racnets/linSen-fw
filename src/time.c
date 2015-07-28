@@ -6,7 +6,6 @@
 #include "misc.h"
 
 #include "time.h"
-#include "led.h"
 
 void time_init() {
 	/* setup RTC */
@@ -22,7 +21,6 @@ void time_init() {
 	/* Wait till LSE is ready */
 	while (RCC_GetFlagStatus(RCC_FLAG_LSERDY) == RESET)
 	{}
-    ledBlueOn();
 	/* Select LSE as RTC Clock Source */
 	RCC_RTCCLKConfig(RCC_RTCCLKSource_LSE);
 	/* Enable RTC Clock */

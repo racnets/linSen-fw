@@ -15,12 +15,12 @@ void blockMatch(volatile uint16_t *now, volatile uint16_t *last, int size, int s
 	int b = 0;
 	int i = 0;
 	/* output */
-	int aktShift;
+	int aktShift = 0;
 	int gshift_a[2*MAX_SEARCH_RADIUS+1] = {0};
 	int* gshift = &gshift_a[MAX_SEARCH_RADIUS];
 
 	/* calculate sector shift */
-	while (b < size) {
+	while (b <= size) {
 		aktShift = 0;
 		min = INT_MAX;
 		for (s = -search_radius; s <= search_radius; ++s) {

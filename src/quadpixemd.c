@@ -1,16 +1,14 @@
 #include <math.h>
 
-#include "stm32f10x.h"
-#include "stm32f10x_rcc.h"
-#include "stm32f10x_gpio.h"
-#include "stm32f10x_adc.h"
-#include "stm32f10x_tim.h"
 #include "misc.h"
+#include "stm32f10x.h"
+#include "stm32f10x_adc.h"
+#include "stm32f10x_gpio.h"
+#include "stm32f10x_rcc.h"
+#include "stm32f10x_tim.h"
 
 #include "main.h"
 #include "quadpixemd.h"
-#include "led.h"
-#include "usart1.h"
 
 quad_pix_result_t quad_pix_result;
 quad_pix_result_t quad_pix_filter_result;
@@ -35,8 +33,8 @@ quad_pix_debug_t quad_pix_filter_debug;
 /* ADC unit
  * ADC on VL else ADC2
  */
-#ifdef HW_DISCOVERY
-#define ADC ADC
+#ifdef USE_STM32_DISCOVERY
+#define ADC ADC1
 #elif defined HW_LINSEN_V0_1 || defined HW_LINSEN_V0_2
 #define ADC ADC2
 #endif
@@ -53,8 +51,6 @@ quad_pix_debug_t quad_pix_filter_debug;
  */
 void quad_pix_emd_init(int _update_rate) {
     static int running = 0;
-    int period;
-    int prescaler;
 
     /* stop running modules */
     if (running) {
@@ -67,9 +63,12 @@ void quad_pix_emd_init(int _update_rate) {
     running = 1;
 
     /* calculate timer parameters */
-    period = SystemCoreClock / _update_rate;
-    prescaler = 1;
-    while (period > pow(2,16)) {
+    RCC_ClocksTypeDef  rcc_clocks;
+    RCC_GetClocksFreq(&rcc_clocks);
+    uint32_t pclk2 = rcc_clocks.PCLK2_Frequency;
+    uint32_t period = pclk2 / _update_rate;
+    uint32_t prescaler = 1;
+    while (period > 0xFFFF) {
         period /= 2;
         prescaler *= 2;
     }
@@ -79,23 +78,38 @@ void quad_pix_emd_init(int _update_rate) {
     /***************************************************/
     /* clocks configuration */
     /* enable ADC, GPIOA with alternate function and timer 1 */
-#ifdef HW_DISCOVERY
-    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_ADC1 | RCC_APB2Periph_AFIO | RCC_APB2Periph_TIM1, ENABLE);
+#ifdef USE_STM32_DISCOVERY
     /* set adc clock */
     RCC_ADCCLKConfig(RCC_PCLK2_Div2);
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_ADC1 | RCC_APB2Periph_TIM1, ENABLE);
 #elif defined HW_LINSEN_V0_1 || defined HW_LINSEN_V0_2
-    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_ADC2 | RCC_APB2Periph_AFIO | RCC_APB2Periph_TIM1, ENABLE);
     /* set adc clock */
     RCC_ADCCLKConfig(RCC_PCLK2_Div6);
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_ADC2 | RCC_APB2Periph_TIM1, ENABLE);
 #endif
+
+
+    /***************************************************/
+    /* NVIC Configuration */
+    NVIC_InitTypeDef NVIC_InitStructure;
+    /* enable the ADC interrupt */
+#ifdef STM32F10X_MD_VL
+    NVIC_InitStructure.NVIC_IRQChannel = ADC1_IRQn;
+#else
+    NVIC_InitStructure.NVIC_IRQChannel = ADC1_2_IRQn;
+#endif
+    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+    NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+    NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+    NVIC_Init(&NVIC_InitStructure);
 
 
     /***************************************************/
     /* GPIO configuration */
     GPIO_InitTypeDef GPIO_InitStructure;
-#ifdef HW_DISCOVERY
-    /* Configure PA.00, PA.01, PA.02 & PA.03 as analog input */
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3;
+#ifdef USE_STM32_DISCOVERY
+    /* Configure PA.01, PA.02, PA.03 & PA.04 as analog input */
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3 | GPIO_Pin_4;
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
     GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
     GPIO_Init(GPIOA, &GPIO_InitStructure);
@@ -111,18 +125,22 @@ void quad_pix_emd_init(int _update_rate) {
 
 
     /***************************************************/
-    /* NVIC Configuration */
-    NVIC_InitTypeDef NVIC_InitStructure;
-    /* enable the DMA1 global interrupt on channel 1*/
-#ifdef HW_DISCOVERY
-    NVIC_InitStructure.NVIC_IRQChannel = ADC_IRQn;
-#elif defined HW_LINSEN_V0_1 || defined HW_LINSEN_V0_2
-    NVIC_InitStructure.NVIC_IRQChannel = ADC1_2_IRQn;
-#endif
-    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
-    NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
-    NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
-    NVIC_Init(&NVIC_InitStructure);
+    /* TIMER configuration - timer 1 */
+    /* pixel clock timer configuration */
+    TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
+    TIM_TimeBaseStructInit(&TIM_TimeBaseStructure);
+    TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
+    TIM_TimeBaseStructure.TIM_Period = period;
+    TIM_TimeBaseStructure.TIM_Prescaler = prescaler;
+    TIM_TimeBaseStructure.TIM_ClockDivision = 0;
+    TIM_TimeBaseInit(TIM1, &TIM_TimeBaseStructure);
+
+    TIM_OCInitTypeDef  TIM_OCInitStructure;
+    TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM1;
+    TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
+    TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_Low;
+    TIM_OCInitStructure.TIM_Pulse = period / 2;
+    TIM_OC4Init(TIM1, &TIM_OCInitStructure);
 
 
     /***************************************************/
@@ -136,9 +154,9 @@ void quad_pix_emd_init(int _update_rate) {
     ADC_InitStructure.ADC_NbrOfChannel = 4;
     ADC_Init(ADC, &ADC_InitStructure);
 
+    /* ADC injected configuration */
     ADC_InjectedSequencerLengthConfig(ADC, 4);
 
-    /* ADC regular configuration */
     uint8_t adc_sampleTime;
     if (_update_rate < UR_MAX_239_5) adc_sampleTime = ADC_SampleTime_239Cycles5;
     else if (_update_rate < UR_MAX_71_5) adc_sampleTime = ADC_SampleTime_71Cycles5;
@@ -148,9 +166,9 @@ void quad_pix_emd_init(int _update_rate) {
     else if (_update_rate < UR_MAX_13_5) adc_sampleTime = ADC_SampleTime_13Cycles5;
     else if (_update_rate < UR_MAX_7_5) adc_sampleTime = ADC_SampleTime_7Cycles5;
     else adc_sampleTime = ADC_SampleTime_1Cycles5;
-#ifdef HW_DISCOVERY
-    ADC_InjectedChannelConfig(ADC, ADC_Channel_0, 1, adc_sampleTime);
-    ADC_InjectedChannelConfig(ADC, ADC_Channel_1, 2, adc_sampleTime);
+#ifdef USE_STM32_DISCOVERY
+    ADC_InjectedChannelConfig(ADC, ADC_Channel_1, 1, adc_sampleTime);
+    ADC_InjectedChannelConfig(ADC, ADC_Channel_2, 2, adc_sampleTime);
     ADC_InjectedChannelConfig(ADC, ADC_Channel_16, 3, adc_sampleTime);
     ADC_InjectedChannelConfig(ADC, ADC_Channel_17, 4, adc_sampleTime);
 #elif defined HW_LINSEN_V0_1 || defined HW_LINSEN_V0_2
@@ -160,30 +178,18 @@ void quad_pix_emd_init(int _update_rate) {
     ADC_InjectedChannelConfig(ADC, ADC_Channel_7, 4, adc_sampleTime);
 #endif
 
+    /* adc trigger setup */
+//	TIM_SelectOutputTrigger(TIM1, TIM_TRGOSource_OC4Ref);
+//    ADC_ExternalTrigInjectedConvConfig(ADC, ADC_ExternalTrigInjecConv_T1_TRGO);
+    /* alternatively  */
     ADC_ExternalTrigInjectedConvConfig(ADC, ADC_ExternalTrigInjecConv_T1_CC4);
+    TIM_CtrlPWMOutputs(TIM1, ENABLE); 	/* enables timer outputs */
+
     ADC_ExternalTrigInjectedConvCmd(ADC, ENABLE);
     /* enable end of conversion interrupt */
     ADC_ITConfig(ADC, ADC_IT_JEOC, ENABLE);
 
     ADC_TempSensorVrefintCmd(ENABLE);
-
-
-    /***************************************************/
-    /* TIMER configuration - timer 1 */
-    /* pixel clock timer configuration */
-    TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
-    TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
-    TIM_TimeBaseStructure.TIM_Period = period;
-    TIM_TimeBaseStructure.TIM_Prescaler = prescaler;
-    TIM_TimeBaseStructure.TIM_ClockDivision = 0;
-    TIM_TimeBaseInit(TIM1, &TIM_TimeBaseStructure);
-
-    TIM_OCInitTypeDef  TIM_OCInitStructure;
-    TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM1;
-    TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
-    TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_Low;
-    TIM_OCInitStructure.TIM_Pulse = period / 2;
-    TIM_OC4Init(TIM1, &TIM_OCInitStructure);
 
 
     /****************************************************/
@@ -201,9 +207,10 @@ void quad_pix_emd_init(int _update_rate) {
     /* Check the end of ADC calibration */
     while(ADC_GetCalibrationStatus(ADC));
 
+    ADC_SoftwareStartConvCmd(ADC, ENABLE);
+
     /* enable timer */
     TIM_Cmd(TIM1, ENABLE);
-    TIM_CtrlPWMOutputs(TIM1, ENABLE);
 }
 
 
@@ -211,9 +218,9 @@ void quad_pix_emd_init(int _update_rate) {
 /*
  * interrupt service routines
  */
-#ifdef HW_DISCOVERY
-void ADC_IRQHandler(void) {
-#elif defined HW_LINSEN_V0_1 || defined HW_LINSEN_V0_2
+#ifdef STM32F10X_MD_VL
+void ADC1_IRQHandler(void) {
+#else
 void ADC1_2_IRQHandler(void) {
 #endif
     if (ADC_GetFlagStatus(ADC, ADC_FLAG_JEOC)) {

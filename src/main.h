@@ -85,12 +85,12 @@ typedef union {
 extern config_u_t config;
 
 /* result defines */
-#define MAX_RESULT_VECTORS	16
+#define MAX_RESULT_SCALARS	16
 
 typedef struct {
 	uint8_t size;
 	int16_t global;
-	int16_t vector[MAX_RESULT_VECTORS];
+	int16_t scalar[MAX_RESULT_SCALARS];
 	uint8_t overflow;
 } result_t;
 

@@ -16,10 +16,11 @@
 #define DMAADCBUFFERSIZE	TSL1401PIXELCOUNT
 /* maximum supported adc sample rate:
  * 14Mhz >= ADC_clock @72Mhz APB2_clock 12Mhz
- * trigger latency: 2(regular) + 1/f_PCLK2
+ * trigger latency: 2(regular) + 1/f_PCLK2(external)
  * sample time: 1.5 cycles - 239.5 cycles
- * conversion time: 12.5 cycles
- * -> 857 kHz sample rate
+ * successive approximation time: 12.5 cycles
+ * conversion time: 17-255 cycles
+ * -> 705 kHz sample rate
  */
 #define PIX_CLK_MAX_1_5		705
 #define PIX_CLK_MAX_7_5		521
@@ -64,7 +65,6 @@ void DMAC2CopyBuffer(int htc);
 void getParameters(int _exposure, int _pixClk);
 void timers_init(int _clock);
 
-
 /*
  * initialization 
  */
@@ -72,7 +72,7 @@ void timers_init(int _clock);
 /* 
  * setup all hardware corresponding to tsl1401 sensor
  * important to start the timer after adc and dma
- * otherwise the data will be misalligned
+ * otherwise the data will be misaligned
  * TODO: add functional description
  */
 void tsl1401_init(int _exposure, int _pixel_clock) {
@@ -109,7 +109,7 @@ void tsl1401_init(int _exposure, int _pixel_clock) {
 	/* enable ADC1, GPIOA, GPIOB, AF */
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_ADC1 | RCC_APB2Periph_GPIOB | RCC_APB2Periph_AFIO, ENABLE);
 	/* set adc clock */
-#ifdef HW_DISCOVERY
+#ifdef USE_STM32_DISCOVERY
 	RCC_ADCCLKConfig(RCC_PCLK2_Div2);
 #elif defined HW_LINSEN_V0_1 || defined HW_LINSEN_V0_2
 	RCC_ADCCLKConfig(RCC_PCLK2_Div6);
@@ -120,7 +120,7 @@ void tsl1401_init(int _exposure, int _pixel_clock) {
 
     /***************************************************/
 	/* GPIO configuration */
-#ifdef HW_DISCOVERY
+#ifdef USE_STM32_DISCOVERY
 	/* Configure PA.07 (ADC Channel7) as analog input */
 	GPIO_InitTypeDef GPIO_InitStructure;
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_7;
@@ -195,7 +195,7 @@ void tsl1401_init(int _exposure, int _pixel_clock) {
 	else if (pixClk < PIX_CLK_MAX_13_5) adc_sampleTime = ADC_SampleTime_13Cycles5;
 	else if (pixClk < PIX_CLK_MAX_7_5) adc_sampleTime = ADC_SampleTime_7Cycles5;
 	else adc_sampleTime = ADC_SampleTime_1Cycles5;
-#ifdef HW_DISCOVERY
+#ifdef USE_STM32_DISCOVERY
 	ADC_RegularChannelConfig(ADC1, ADC_Channel_7, 1, adc_sampleTime);
 #elif defined HW_LINSEN_V0_1 || defined HW_LINSEN_V0_2
 	ADC_RegularChannelConfig(ADC1, ADC_Channel_9, 1, adc_sampleTime);
@@ -300,7 +300,7 @@ void tsl1401_init(int _exposure, int _pixel_clock) {
 	TIM_OCInitStructure.TIM_Pulse = DMAADCBUFFERSIZE;
 	TIM_OC4Init(TIM3, &TIM_OCInitStructure);
 
-#ifdef HW_DISCOVERY
+#ifdef USE_STM32_DISCOVERY
 	/* Output Compare Timing Mode configuration: Channel1 */
 	/* SI1 pulse */	
 	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM1;    
@@ -330,10 +330,12 @@ void tsl1401_init(int _exposure, int _pixel_clock) {
 	/* needed - timer 2 & 4 are (only) synchron due to identical setup */
 	/* timer 3 is only synchron, if it depends on timer 2 as clock source */
 	/* otherwise timer 3 is asynchron to timer 2 & 4 */
+	/* TIM3 and ITR3 -> TIM4 as trigger input */
 	TIM_SelectSlaveMode(TIM3, TIM_SlaveMode_External1);
 	TIM_SelectInputTrigger(TIM3, TIM_TS_ITR3);   	
 
 	/* master mode configuration - needed for timer 4 */
+	/* OC4Ref-signal is send to timer 3 trigger output */
 	TIM_SelectMasterSlaveMode(TIM3, TIM_MasterSlaveMode_Enable);
 	TIM_SelectOutputTrigger(TIM3, TIM_TRGOSource_OC4Ref);
 
@@ -354,6 +356,8 @@ void tsl1401_init(int _exposure, int _pixel_clock) {
 	TIM_OC2Init(TIM2, &TIM_OCInitStructure);
 
 	/* slave mode configuration */
+	/* gated: counter clock is enabled when trigger input is high */
+	/* TIM2 and ITR2 -> TIM3 as trigger input */
 	TIM_SelectSlaveMode(TIM2, TIM_SlaveMode_Gated);
 	TIM_SelectInputTrigger(TIM2, TIM_TS_ITR2);
 
@@ -449,13 +453,12 @@ void DMAC2CopyBuffer(int htc) {
 }
 
 
-
+/* in kHz */
 void setPixelClock(int value) {
 	tsl1401_init(exposure, value);
 }
 
-
-
+/* in kHz */
 int getPixelClock() {
     return pixClk;
 }
@@ -489,8 +492,11 @@ inline void getParameters(int _exposure, int _pixClk) {
     else pixClk = _pixClk;
     
     /* pixPeriod <= 14400(72M/5k)*/
-    pixPeriod = (SystemCoreClock / 1000) / pixClk;
-    pixClk = ((SystemCoreClock / 1000) / pixPeriod);
+    RCC_ClocksTypeDef  rcc_clocks;
+    RCC_GetClocksFreq(&rcc_clocks);
+    uint32_t pclk1 = rcc_clocks.PCLK1_Frequency;
+    pixPeriod = (pclk1 / 1000) / pixClk;
+    pixClk = ((pclk1 / 1000) / pixPeriod);
     
     /* minimal possible exposure: 129clk + 20µs */
     /* minimal value: 36µs @ 8Mhz */

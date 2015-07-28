@@ -1,21 +1,22 @@
 #include "stm32f10x.h"
 #include "stm32f10x_rcc.h"
-#include "stm32f10x_dma.h"
-#include "stm32f10x_flash.h"
 
 #include "main.h"
 
-#include "eeprom.h"
-#include "led.h"
-#include "usart1.h"
-#include "tsl1401.h"
-#include "blockmatch.h"
-#include "calibration.h"
 #include "button.h"
-#include "mavlink_bridge.h"
-#include "time.h"
+#include "eeprom.h"
 #include "i2c.h"
+#include "led.h"
 #include "quadpixemd.h"
+#include "servo.h"
+#include "time.h"
+#include "tsl1401.h"
+#include "usart1.h"
+
+#ifdef USE_MAVLINK
+#include "mavlink_bridge.h"
+#endif
+
 
 void RCC_Configuration(void);
 
@@ -24,15 +25,10 @@ uint16_t VirtAddVarTab[NumbOfVar] = {I2C_SLAVE_ADDRESS_ADDR};
 
 int blockMatchResultInt = 0;
 
-config_u_t config = {0};
+config_u_t config = {};
 result_t linSen_result = {0};
 
 int main(void) {
-    uint16_t i2c_addr = 0x30;
-    uint32_t _systick_then, _systick_now;
-    uint32_t round_trip;
-    int help = 100;
-
     /* configure clocks configuration */
     RCC_Configuration();
 
@@ -42,52 +38,72 @@ int main(void) {
     config.s.usart_modus = OPEN;
     config.s.oflow_algo = BM_1;
     config.s.oflow_algo_param = 0;
-    config.s.result_output |= LEDS;
+    config.s.result_output = OFF;
 
     /* initialize modules */
+    buttonInit();
+    ledsInit();
+    time_init();
+
+#ifdef USE_I2C
     /* Unlock the Flash Program Erase controller */
     FLASH_Unlock();
     /* EEPROM Init */
     EE_Init();
     /* get i2c address from flash */
+    uint16_t i2c_addr = 0x30;
     if (EE_ReadVariable(I2C_SLAVE_ADDRESS_ADDR, &i2c_addr) != 0) EE_WriteVariable(I2C_SLAVE_ADDRESS_ADDR, i2c_addr);
 
-    ledsInit();
-    buttonInit();
+    i2c_init(i2c_addr);
+#endif
+#ifdef USE_USART
+    USART1Init();
+#endif
 
-#ifdef HW_DISCOVERY
+#if defined USE_STM32_DISCOVERY && defined USE_TSL && defined USE_EMD
     /* only one function is supported, because they share one ADC unit */
+    #error only one of TSL or EMD is supported on this platform
+#elif defined USE_STM32_DISCOVERY && defined USE_TSL && !defined USE_EMD
     tsl1401_init(50000, 200);
-//    quad_pix_emd_init(1000);
-#elif defined HW_LINSEN_V0_1 || defined HW_LINSEN_V0_2
-    tsl1401_init(50000, 200);
+#elif defined USE_STM32_DISCOVERY && !defined USE_TSL && defined USE_EMD
     quad_pix_emd_init(1000);
 #endif
-    USART1Init();
-    time_init();
-    i2c_init(i2c_addr);
+
+#if defined HW_LINSEN_V0_1 || defined HW_LINSEN_V0_2
+#ifdef USE_TSL
+    tsl1401_init(50000, 200);
+#endif
+#ifdef USE_EMD
+    quad_pix_emd_init(1000);
+#endif
+#endif
+
+#ifdef USE_SERVO
+    servoInit();
+#endif
+
+
+	ledGreenOn();
 
     /* run programm */
     while (1) {
         /* round-trip measurement */
+        static uint32_t _systick_then, _systick_now;
+
         _systick_now = get_systick();
-        round_trip = _systick_then - _systick_now;
+        uint32_t round_trip = _systick_then - _systick_now;
         _systick_then = _systick_now;
-
-        /* process usart1 rx data */
-        if (usart1_rx_data_available() && config.s.usart_modus != OFF) {
-            //if (config.s.usart_modus == TERMINAL || config.s.usart_modus == OPEN) parseRxBuffer();
-            if (config.s.usart_modus == MAVLINK || config.s.usart_modus == OPEN) processMavlink();
-        }
-
-        /* handle mavlink data */
-        if (config.s.usart_modus == MAVLINK) handleMavlink();
 
         /* process button status */
         if (buttonPressed()) {
             ledBlueToggle();
+#ifdef USE_SERVO
+			toggleServoSpeed();
+#endif
         }
 
+
+#ifdef USE_TSL
         /******************************/
         /* TSL1401                    */
         /* dma1 transfer complete     */
@@ -140,49 +156,61 @@ int main(void) {
                 else ledRedOff();
             }
 
+#ifdef USE_I2C
             /* process i2c output */
             if (config.s.result_output & I2C) {
-                /* if data was requestet by i2c the integral is flushed */
+                /* if data was requested by i2c the integral is flushed */
                 if (config.s.result_output & I2C_REQUEST) {
                     config.s.result_output &= ~I2C_REQUEST;
                     i2c_init_result(&linSen_result);
                 } else
-                /* the data not beeing send is beeing integrated */
+                /* the data not being send is being integrated */
                  ;//i2c_add_result(&linSen_result);
             }
-
+#endif
+#if defined USE_USART && defined USE_MAVLINK
             /* output sensor debug data via mavlink */
             if (config.s.debug_modus & MAVLINK) mavlinkSendLinRaw((uint16_t*)tsl1401_dataset);
 
             /* output sensor data via mavlink */
-            if (config.s.result_output & MAVLINK) mavlinkSendOpticalFlow(linSen_result.global, linSen_result.size, 0);
+            if (config.s.result_output & MAVLINK) mavlinkSendOpticalFlow(linSen_result.global, linSen_result.size /*0*/, 0);
+#endif
         }
+#endif // USE_TSL
 
+#ifdef USE_EMD
         /******************************/
-        /* quadPix                    */
-        /* conversion complete          */
+        /* quadPix emd                */
+        /* conversion complete        */
         if (quad_pix_result.update) {
             quad_pix_result.update = 0;
 
             quad_pix_emd_update();
 
+#if defined USE_USART && defined USE_MAVLINK
             /* output sensor debug data via mavlink */
 //            if (config.s.debug_modus & MAVLINK) mavlinkSendQuadRaw((uint32_t*)quad_pix_result.value);
+#endif
         }
         /* filter complete */
         if (quad_pix_filter_result.update) {
             quad_pix_filter_result.update = 0;
 
+#if defined USE_USART && defined USE_MAVLINK
             /* output sensor data via mavlink */
             if (config.s.result_output & MAVLINK) mavlinkSendOpticalFlow(quad_pix_filter_result.value[0], quad_pix_filter_result.value[1], 0);
 
             /* output sensor debug data via mavlink */
             if (config.s.debug_modus & MAVLINK) mavlinkSendQuadRaw((uint32_t*)quad_pix_filter_debug.value);
+#endif
         }
+#endif
     }
 }
 
 void RCC_Configuration(void) {
-    /* set peripheral clock 1 to PCLK1 = HCLK */
-    RCC_PCLK1Config(RCC_HCLK_Div1);
+    /* Configures the Low Speed APB clock (APB1-domain) */
+	/* not more then 36Mhz are allowed */
+    if (SystemCoreClock > 36E6) RCC_PCLK1Config(RCC_HCLK_Div2);
+    else RCC_PCLK1Config(RCC_HCLK_Div1);
 }
